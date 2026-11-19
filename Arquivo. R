@@ -1,0 +1,75 @@
+#############################################################
+# CURVA DE LACTAÇÃO DE OVELHAS SANTA INÊS
+# MODELO DE WOOD - INFERÊNCIA BAYESIANA
+##############################################################
+
+library(readxl)
+library(dplyr)
+library(rjags)
+library(coda)
+
+##############################################################
+# IMPORTAR OS DADOS
+
+dados <- read_excel("Dados_sem.xlsx")
+
+##############################################################
+# RENOMEAR A VARIÁVEL DE PRODUÇÃO
+
+dados <- dados %>%
+  rename(Prod = `Leite_S (mg)`)
+
+##############################################################
+# CALCULAR A MÉDIA SEMANAL
+
+dados_media <- dados %>%
+  group_by(Raca, Semana) %>%
+  summarise(
+    media_prod = mean(Prod, na.rm = TRUE),
+    n_animais = n(),
+    .groups = "drop"
+  )
+
+##############################################################
+# SELECIONAR A RAÇA SANTA INÊS
+
+dados_raca1 <- subset(dados_media, Raca == 1)
+
+x <- dados_raca1$Semana
+y <- dados_raca1$media_prod
+
+n <- length(y)
+
+
+
+#############################################################
+dados_jags <- list(
+  
+  x = x,
+  y = y,
+  n = n
+  
+)
+
+inits <- function(){
+  list(
+    a = 350,
+    b = 0.70,
+    c = 0.18,
+    sigma = 50
+    
+  )
+  
+}
+parametros <- c("a","b","c","sigma")
+
+library(jagsUI)
+out<- jags(data = dados_jags,
+           inits = inits,
+           parameters.to.save = parametros,
+           model.file = "ovelhas1.R",
+           n.chains = 3, n.iter = 50000,
+           n.burnin = 10000
+)
+
+plot(out)
